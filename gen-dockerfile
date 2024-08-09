@@ -1,0 +1,49 @@
+#! /bin/bash
+
+source_path=$1
+
+source_files=$(find "$source_path" -maxdepth 1 -mindepth 1)
+
+cat <<EOF > ./Dockerfile
+FROM sonarsource/sonar-scanner-cli AS base 
+
+ARG SONAR_HOST
+ARG SONAR_TOKEN
+
+WORKDIR /src
+
+EOF
+
+echo Writing Dockerfile...
+
+for file in $source_files; do
+    case $file in 
+        "$0")
+        echo "Skipping $file"
+        ;;
+
+        "./Dockerfile")
+        echo "Skipping $file"
+        ;;
+
+        ".")
+        echo "Skipping $file"
+        ;;
+
+        *)
+        filename="${file#./}"
+        echo "COPY $file /src/$filename" >> ./Dockerfile
+        ;;
+    esac 
+done
+
+cat <<EOF >> ./Dockerfile
+
+USER root
+
+RUN sonar-scanner \
+ -Dsonar.sources=. \
+ -Dsonar.host.url=\${SONAR_HOST} \
+ -Dsonar.login=\${SONAR_TOKEN}
+
+EOF
